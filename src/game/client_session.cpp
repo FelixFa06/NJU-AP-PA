@@ -61,7 +61,8 @@ bool ClientSession::send_to_host(Message message) {
 // 事件钩子：这些是你要实现的部分。
 // ---------------------------------------------------------------------------
 void ClientSession::on_connected() {
-    info("TODO(client): send JOIN name=" + session_name());
+    // info("TODO(client): send JOIN name=" + session_name());
+    send_to_host(Message("JOIN name=" + session_name()));
 }
 
 void ClientSession::on_peer_join(PeerId) {
