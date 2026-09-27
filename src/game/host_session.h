@@ -46,8 +46,9 @@ protected:
 
     // ---- Player List 相关操作 ----------------------------------------
     void initialize_players();
-    int append_player(PeerId who, std::string name);
     Message show_players() const;
+    int append_player(PeerId who, std::string name);
+    void rename_player(PeerId who, std::string name);
 
     // ---- host 独有的大厅命令 -------------------------------------------
     Result start(const Args& args);

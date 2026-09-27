@@ -57,7 +57,12 @@ void HostSession::on_peer_message(PeerId from, const Message& message) {
     if (message.type == "JOIN")
     {
         int seat_id = append_player(from, message.get("name"));
-        send_to(from, Message("WELCOME id=" + std::to_string(seat_id) + " name=" + message.get("name")));
+        send_to(from, Message("WELCOME").set("id",seat_id).set("name",message.get("name")));
+        broadcast(show_players());
+    }
+    if (message.type == "RENAME")
+    {
+        rename_player(from, message.get("name"));
         broadcast(show_players());
     }
 }
@@ -75,6 +80,14 @@ void HostSession::initialize_players()
     m_players.clear();
     m_players.push_back(Player(PeerId(0),session_name()));
 }
+Message HostSession::show_players() const
+{
+    Message mes("PLAYERS");
+    mes.set("count", (int)m_players.size());
+    for (int i = 0; i < (int)m_players.size();i++)
+        mes.set(std::to_string(i), m_players[i].name);
+    return Message(mes);
+}
 int HostSession::append_player(PeerId who, std::string name)
 {
     Player player(who, name);
@@ -83,12 +96,10 @@ int HostSession::append_player(PeerId who, std::string name)
     m_seat_of[who] = seat_id;
     return seat_id; // 返回座位号
 }
-Message HostSession::show_players() const
+void HostSession::rename_player(PeerId who, std::string name)
 {
-    std::string mes = "PLAYERS count=" + std::to_string((int)m_players.size());
-    for (int i = 0; i < (int)m_players.size();i++)
-        mes += " " + std::to_string(i) + "=" + m_players[i].name;
-    return Message(mes);
+    int seat_id = m_seat_of[who];
+    m_players[seat_id].name = name;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +118,9 @@ Session::Result HostSession::kick(const Args& args) {
 }
 
 Session::Result HostSession::rename(const Args& args) {
-    info("TODO(host): rename player to " + args[1] + " and broadcast PLAYERS");
+    // info("TODO(host): rename player to " + args[1] + " and broadcast PLAYERS");
+    rename_player(PeerId(0), args[1]);
+    broadcast(show_players());
     return Result::Continue;
 }
 
