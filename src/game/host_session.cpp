@@ -68,38 +68,69 @@ void HostSession::on_peer_message(PeerId from, const Message& message) {
 }
 
 void HostSession::on_peer_leave(PeerId who) {
-    info("TODO(host): peer " + who.str() +
-         " disconnected -- drop it from the player list");
+    // info("TODO(host): peer " + who.str() +
+    //      " disconnected -- drop it from the player list");
+    drop_player(who);
+    broadcast(show_players());
 }
 
 // ---------------------------------------------------------------------------
 // Player List 相关操作
 // ---------------------------------------------------------------------------
-void HostSession::initialize_players()
-{
+void HostSession::initialize_players() {
     m_players.clear();
     m_players.push_back(Player(PeerId(0),session_name()));
 }
-Message HostSession::show_players() const
-{
+
+Message HostSession::show_players() const {
     Message mes("PLAYERS");
     mes.set("count", (int)m_players.size());
     for (int i = 0; i < (int)m_players.size();i++)
         mes.set(std::to_string(i), m_players[i].name);
     return Message(mes);
 }
-int HostSession::append_player(PeerId who, std::string name)
-{
+
+int HostSession::append_player(PeerId who, std::string name) {
     Player player(who, name);
     int seat_id = (int)m_players.size();
     m_players.push_back(player);
     m_seat_of[who] = seat_id;
     return seat_id; // 返回座位号
 }
-void HostSession::rename_player(PeerId who, std::string name)
-{
+
+void HostSession::rename_player(PeerId who, std::string name) {
+    if (m_seat_of.find(who)==m_seat_of.end())
+        return;
     int seat_id = m_seat_of[who];
     m_players[seat_id].name = name;
+}
+
+void HostSession::drop_player(PeerId who) {
+    if (m_seat_of.find(who)==m_seat_of.end())
+        return;
+    int seat_id = m_seat_of[who];
+    m_seat_of.erase(who);
+    m_players.erase(m_players.begin() + seat_id);
+    reindex_players();
+}
+
+void HostSession::reindex_players() {
+    m_seat_of.clear();
+    for (int i = 0; i < (int)m_players.size(); i++)
+        m_seat_of[m_players[i].who] = i;
+}
+
+int HostSession::find_seat(const std::string& key) const { // key 可以为座位号或玩家名字
+    bool numeric = !key.empty();
+    for (char c : key) if (!std::isdigit((unsigned char)c)) { numeric = false; break; }
+    if (numeric)
+    {
+        const int seat_id = std::stoi(key);
+        return (seat_id >= 0 && seat_id < (int)m_players.size()) ? seat_id : -1;
+    }
+    for (int i = 0; i < (int)m_players.size(); i++)
+        if (m_players[i].name == key) return i;
+    return -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +144,14 @@ Session::Result HostSession::start(const Args&) {
 }
 
 Session::Result HostSession::kick(const Args& args) {
-    info("TODO(host): remove player " + args[1] + " and broadcast PLAYERS");
+    // info("TODO(host): remove player " + args[1] + " and broadcast PLAYERS");
+    int seat_id = find_seat(args[1]);
+    if (seat_id < 0)
+        error("no such player: " + args[1]); 
+    else if (!m_players[seat_id].who.valid())
+        error("cannot kick that player");
+    else
+        loop().close_peer(m_players[seat_id].who);
     return Result::Continue;
 }
 

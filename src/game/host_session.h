@@ -49,6 +49,9 @@ protected:
     Message show_players() const;
     int append_player(PeerId who, std::string name);
     void rename_player(PeerId who, std::string name);
+    void drop_player(PeerId who);
+    void reindex_players();
+    int find_seat(const std::string &key) const;
 
     // ---- host 独有的大厅命令 -------------------------------------------
     Result start(const Args& args);
