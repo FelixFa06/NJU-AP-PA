@@ -53,7 +53,7 @@ void HostSession::on_peer_join(PeerId who) {
 }
 
 void HostSession::on_peer_message(PeerId from, const Message& message) {
-    info("TODO(host): handle " + message.type + " from peer " + from.str());
+    // info("TODO(host): handle " + message.type + " from peer " + from.str());
     if (message.type == "JOIN")
     {
         int seat_id = append_player(from, message.get("name"));
@@ -80,6 +80,7 @@ void HostSession::on_peer_leave(PeerId who) {
 void HostSession::initialize_players() {
     m_players.clear();
     m_players.push_back(Player(PeerId(0),session_name()));
+    m_seat_of[PeerId(0)] = 0;
 }
 
 Message HostSession::show_players() const {
@@ -137,9 +138,15 @@ int HostSession::find_seat(const std::string& key) const { // key 可以为座�
 // 本地命令行：host 玩家自己敲的命令。
 // ---------------------------------------------------------------------------
 Session::Result HostSession::start(const Args&) {
-    info("TODO(host): validate >=2 players, deal cards, send HAND to each "
-         "player and START/TURN to everyone");
+    // info("TODO(host): validate >=2 players, deal cards, send HAND to each "
+    //      "player and START/TURN to everyone");
     // 骨架行为：即使游戏逻辑还没写，也让大厅 -> 游戏 -> 大厅的流程可走通。
+    if ((int)m_players.size() < 2)
+    {
+        error("players not enough (less than 2)");
+        return Result::Continue;
+    }
+    enter_game();
     return Result::StartGame;
 }
 
