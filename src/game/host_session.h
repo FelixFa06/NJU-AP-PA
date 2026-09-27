@@ -44,6 +44,11 @@ protected:
     void on_peer_message(PeerId from, const Message& message) override;
     void on_peer_leave(PeerId who) override;
 
+    // ---- Player List 相关操作 ----------------------------------------
+    void initialize_players();
+    int append_player(PeerId who, std::string name);
+    Message show_players() const;
+
     // ---- host 独有的大厅命令 -------------------------------------------
     Result start(const Args& args);
     Result kick(const Args& args);
@@ -61,6 +66,14 @@ protected:
 private:
     std::unique_ptr<Server> m_server;
     std::string m_room_path;
+    struct Player
+    {
+        PeerId who;
+        std::string name;
+        Player(PeerId _who, std::string _name) { who = _who, name = _name; }
+    };
+    std::vector<Player> m_players;
+    std::map<PeerId, int> m_seat_of;
 };
 
 } // 命名空间 uno

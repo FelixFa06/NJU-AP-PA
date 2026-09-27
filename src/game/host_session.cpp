@@ -12,6 +12,7 @@ HostSession::HostSession(std::string name, std::istream& in, std::ostream& out)
     add_lobby_command("kick", "kick <player_id|player_name>",
                       "remove a player from the room (host only)",
                       [this](const Args& args) { return kick(args); }, 1, 1);
+    initialize_players();
 }
 
 HostSession::~HostSession() = default;
@@ -46,17 +47,48 @@ bool HostSession::listen_tcp(int port, std::string& err) {
 // 事件钩子：这些是你要实现的部分。
 // ---------------------------------------------------------------------------
 void HostSession::on_peer_join(PeerId who) {
-    info("TODO(host): a client connected as peer " + who.str() +
-         " -- greet it, ask for a name, and update the player list");
+    // info("TODO(host): a client connected as peer " + who.str() +
+    //      " -- greet it, ask for a name, and update the player list");
+    (void)who;
 }
 
 void HostSession::on_peer_message(PeerId from, const Message& message) {
     info("TODO(host): handle " + message.type + " from peer " + from.str());
+    if (message.type == "JOIN")
+    {
+        int seat_id = append_player(from, message.get("name"));
+        send_to(from, Message("WELCOME id=" + std::to_string(seat_id) + " name=" + message.get("name")));
+        broadcast(show_players());
+    }
 }
 
 void HostSession::on_peer_leave(PeerId who) {
     info("TODO(host): peer " + who.str() +
          " disconnected -- drop it from the player list");
+}
+
+// ---------------------------------------------------------------------------
+// Player List 相关操作
+// ---------------------------------------------------------------------------
+void HostSession::initialize_players()
+{
+    m_players.clear();
+    m_players.push_back(Player(PeerId(0),session_name()));
+}
+int HostSession::append_player(PeerId who, std::string name)
+{
+    Player player(who, name);
+    int seat_id = (int)m_players.size();
+    m_players.push_back(player);
+    m_seat_of[who] = seat_id;
+    return seat_id; // 返回座位号
+}
+Message HostSession::show_players() const
+{
+    std::string mes = "PLAYERS count=" + std::to_string((int)m_players.size());
+    for (int i = 0; i < (int)m_players.size();i++)
+        mes += " " + std::to_string(i) + "=" + m_players[i].name;
+    return Message(mes);
 }
 
 // ---------------------------------------------------------------------------
