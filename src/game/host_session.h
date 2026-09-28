@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "game/session.h"
 #include "protocol/net.h"
@@ -52,6 +53,8 @@ protected:
     void drop_player(PeerId who);
     void reindex_players();
     int find_seat(const std::string &key) const;
+    // 名字是否已被别人占用（except 是自己，允许「改成自己的名字」）。
+    bool name_taken(const std::string& name, PeerId except) const;
 
     // ---- host 独有的大厅命令 -------------------------------------------
     Result start(const Args& args);
@@ -74,7 +77,8 @@ private:
     {
         PeerId who;
         std::string name;
-        Player(PeerId _who, std::string _name) { who = _who, name = _name; }
+        Player(PeerId _who, std::string _name)
+            : who(_who), name(std::move(_name)) {}
     };
     std::vector<Player> m_players;
     std::map<PeerId, int> m_seat_of;

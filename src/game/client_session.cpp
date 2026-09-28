@@ -62,7 +62,9 @@ bool ClientSession::send_to_host(Message message) {
 // ---------------------------------------------------------------------------
 void ClientSession::on_connected() {
     // info("TODO(client): send JOIN name=" + session_name());
-    send_to_host(Message("JOIN name=" + session_name()));
+    Message message("JOIN");
+    message.set("name", session_name());
+    send_to_host(std::move(message));
 }
 
 void ClientSession::on_peer_join(PeerId) {

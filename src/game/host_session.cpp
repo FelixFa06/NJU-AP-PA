@@ -1,5 +1,6 @@
 #include "host_session.h"
 
+#include <cctype>
 #include <utility>
 
 namespace uno {
@@ -56,15 +57,37 @@ void HostSession::on_peer_message(PeerId from, const Message& message) {
     // info("TODO(host): handle " + message.type + " from peer " + from.str());
     if (message.type == "JOIN")
     {
-        int seat_id = append_player(from, message.get("name"));
-        send_to(from, Message("WELCOME").set("id",seat_id).set("name",message.get("name")));
-        broadcast(show_players());
+        const std::string name = message.get("name");
+        if (name.empty())
+            send_to(from, Message("ERROR").set("msg", "JOIN needs a name"));
+        else if (m_seat_of.count(from) > 0)
+            send_to(from, Message("ERROR").set("msg", "you have already joined"));
+        else if (name_taken(name, from))
+            send_to(from, Message("ERROR").set("msg", "name is taken: " + name));
+        else
+        {
+            const int seat_id = append_player(from, name);
+            send_to(from, Message("WELCOME").set("id",seat_id).set("name",name));
+            broadcast(show_players());
+        }
     }
-    if (message.type == "RENAME")
+    else if (message.type == "RENAME")
     {
-        rename_player(from, message.get("name"));
-        broadcast(show_players());
+        const std::string name = message.get("name");
+        if (name.empty())
+            send_to(from, Message("ERROR").set("msg", "RENAME needs a name"));
+        else if (m_seat_of.count(from) == 0)
+            send_to(from, Message("ERROR").set("msg", "RENAME before JOIN"));
+        else if (name_taken(name, from))
+            send_to(from, Message("ERROR").set("msg", "name is taken: " + name));
+        else
+        {
+            rename_player(from, name);
+            broadcast(show_players());
+        }
     }
+    else
+        send_to(from, Message("ERROR").set("msg", "unknown message type: " + message.type));
 }
 
 void HostSession::on_peer_leave(PeerId who) {
@@ -126,12 +149,25 @@ int HostSession::find_seat(const std::string& key) const { // key 可以为座�
     for (char c : key) if (!std::isdigit((unsigned char)c)) { numeric = false; break; }
     if (numeric)
     {
-        const int seat_id = std::stoi(key);
-        return (seat_id >= 0 && seat_id < (int)m_players.size()) ? seat_id : -1;
+        int seat_id = 0;
+        for (char c : key)
+        {
+            seat_id = seat_id * 10 + (c - '0');
+            if (seat_id >= (int)m_players.size())
+                return -1;
+        }
+        return seat_id;
     }
     for (int i = 0; i < (int)m_players.size(); i++)
-        if (m_players[i].name == key) return i;
+        if (m_players[i].name == key)
+            return i;
     return -1;
+}
+
+bool HostSession::name_taken(const std::string& name, PeerId except) const {
+    for (const Player& player : m_players)
+        if (player.who != except && player.name == name) return true;
+    return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +200,11 @@ Session::Result HostSession::kick(const Args& args) {
 
 Session::Result HostSession::rename(const Args& args) {
     // info("TODO(host): rename player to " + args[1] + " and broadcast PLAYERS");
+    if (name_taken(args[1], PeerId(0)))
+    {
+        error("name is taken: " + args[1]);
+        return Result::Continue;
+    }
     rename_player(PeerId(0), args[1]);
     broadcast(show_players());
     return Result::Continue;
